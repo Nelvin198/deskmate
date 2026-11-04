@@ -1,0 +1,30 @@
+{
+  "name": "deskmate",
+  "version": "1.0.0",
+  "description": "A clean, minimal dashboard for Obsidian.",
+  "main": "main.js",
+  "private": true,
+  "scripts": {
+    "dev": "node esbuild.config.mjs",
+    "build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
+    "lint": "eslint src"
+  },
+  "author": "Nelvin Cheah",
+  "license": "MIT",
+  "dependencies": {
+    "@mlc-ai/web-llm": "^0.2.87",
+    "obsidian-daily-notes-interface": "^0.9.5",
+    "three": "^0.187.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^26.6.6",
+    "@types/three": "^0.187.0",
+    "esbuild": "^0.28.2",
+    "eslint": "^10.14.0",
+    "eslint-plugin-obsidianmd": "^0.4.2",
+    "obsidian": "^1.14.4",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.72.1"
+  }
+}

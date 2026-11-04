@@ -1,0 +1,10 @@
+{
+  "id": "deskmate",
+  "name": "Deskmate",
+  "version": "1.0.0",
+  "minAppVersion": "1.8.7",
+  "description": "A clean, minimal dashboard: a live clock header, today's goal and tasks, and subject cards with covers. Works fully offline.",
+  "author": "Nelvin Cheah",
+  "authorUrl": "https://github.com/Nelvin198",
+  "isDesktopOnly": false
+}

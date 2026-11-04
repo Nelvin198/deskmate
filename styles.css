@@ -1,0 +1,705 @@
+/* Deskmate: clean, minimal dashboard widgets. Uses only Obsidian's theme variables. */
+
+/* A note with `cssclasses: deskmate` gets a wider page. */
+.markdown-preview-view.deskmate,
+.markdown-source-view.deskmate {
+	--file-line-width: 1080px;
+}
+
+/* Dashboards don't need the Properties box on top. Edit them via "Show file properties" in the command palette. */
+.markdown-preview-view.deskmate .metadata-container,
+.markdown-source-view.deskmate .metadata-container {
+	display: none;
+}
+
+/* Space around every Deskmate block so it never touches the blocks next to it (e.g. a Dataview list). */
+div[class*="block-language-deskmate-"] {
+	margin-block: 16px 24px;
+}
+
+.dm-card {
+	position: relative;
+	background: var(--background-secondary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 14px;
+	padding: 20px 22px;
+}
+
+.dm-label {
+	font-size: var(--font-ui-smaller);
+	font-weight: var(--font-semibold);
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+	color: var(--text-muted);
+}
+
+.dm-empty {
+	color: var(--text-faint);
+	font-size: var(--font-ui-small);
+	padding: 6px 0;
+}
+
+.dm-hidden,
+.dm-probe {
+	display: none;
+}
+
+/* Header */
+.dm-header {
+	overflow: hidden;
+	padding: 28px 30px;
+	min-height: 180px;
+	container-type: inline-size;
+}
+
+.dm-ambient {
+	position: absolute;
+	inset: 0;
+	width: 100%;
+	height: 100%;
+	pointer-events: none;
+	opacity: 0.9;
+}
+
+.dm-header-body {
+	position: relative;
+	display: flex;
+	justify-content: space-between;
+	align-items: flex-start;
+	gap: 24px;
+}
+
+.dm-eyebrow {
+	font-size: var(--font-ui-smaller);
+	letter-spacing: 0.12em;
+	text-transform: uppercase;
+	color: var(--text-faint);
+}
+
+.dm-header .dm-greeting {
+	margin: 6px 0 2px;
+	font-size: 2em;
+	font-weight: 600;
+	line-height: 1.15;
+	letter-spacing: -0.02em;
+	color: var(--text-normal);
+}
+
+.dm-subtitle {
+	color: var(--text-muted);
+}
+
+.dm-stats {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	margin-top: 18px;
+}
+
+.dm-stat {
+	display: flex;
+	align-items: baseline;
+	gap: 6px;
+	padding: 5px 12px;
+	border-radius: 999px;
+	background: var(--background-primary);
+	border: 1px solid var(--background-modifier-border);
+	font-size: var(--font-ui-small);
+}
+
+.dm-stat-num {
+	font-weight: 600;
+	font-variant-numeric: tabular-nums;
+	color: var(--text-normal);
+}
+
+.dm-stat-label {
+	color: var(--text-muted);
+}
+
+.dm-header-right {
+	text-align: right;
+	flex-shrink: 0;
+}
+
+.dm-clock {
+	font-size: 3em;
+	font-weight: 300;
+	line-height: 1;
+	letter-spacing: -0.03em;
+	font-variant-numeric: tabular-nums;
+	color: var(--text-normal);
+}
+
+.dm-seconds {
+	font-size: 0.4em;
+	margin-left: 2px;
+	color: var(--text-faint);
+}
+
+.dm-date {
+	margin-top: 8px;
+	font-size: var(--font-ui-small);
+	color: var(--text-muted);
+}
+
+@container (max-width: 560px) {
+	.dm-header-body {
+		flex-direction: column-reverse;
+	}
+	.dm-header-right {
+		text-align: left;
+	}
+	.dm-clock {
+		font-size: 2.2em;
+	}
+}
+
+/* Today */
+.block-language-deskmate-today {
+	container-type: inline-size;
+}
+
+.dm-today {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr);
+	gap: 16px;
+}
+
+@container (max-width: 620px) {
+	.dm-today {
+		grid-template-columns: 1fr;
+	}
+}
+
+.dm-goal-body {
+	margin-top: 12px;
+}
+
+.dm-goal-text {
+	font-size: 1.25em;
+	font-weight: 500;
+	line-height: 1.4;
+	cursor: text;
+	border-radius: 8px;
+	padding: 4px 6px;
+	margin: -4px -6px;
+	white-space: pre-wrap;
+}
+
+.dm-goal-text:hover,
+.dm-goal-text:focus-visible {
+	background: var(--background-modifier-hover);
+}
+
+.dm-goal-text.dm-placeholder {
+	color: var(--text-faint);
+	font-weight: 400;
+}
+
+.dm-goal-input {
+	width: 100%;
+	font-size: 1.15em;
+	resize: vertical;
+}
+
+.dm-card-head {
+	display: flex;
+	justify-content: space-between;
+	align-items: baseline;
+	margin-bottom: 8px;
+}
+
+.dm-count {
+	font-size: var(--font-ui-smaller);
+	color: var(--text-faint);
+}
+
+.dm-task {
+	display: flex;
+	align-items: flex-start;
+	gap: 10px;
+	padding: 8px 0;
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.dm-task .dm-check {
+	margin: 3px 0 0;
+	flex-shrink: 0;
+}
+
+.dm-task-body {
+	min-width: 0;
+	flex: 1;
+}
+
+.dm-task-text {
+	line-height: 1.4;
+	overflow-wrap: anywhere;
+}
+
+.dm-task-text {
+	cursor: text;
+	border-radius: 4px;
+}
+
+.dm-task-text:hover,
+.dm-task-text:focus-visible {
+	background: var(--background-modifier-hover);
+}
+
+.dm-task-input {
+	width: 100%;
+}
+
+.dm-task .dm-task-delete {
+	flex-shrink: 0;
+	opacity: 0;
+	color: var(--text-faint);
+	transition: opacity 0.1s ease;
+}
+
+.dm-task:hover .dm-task-delete,
+.dm-task .dm-task-delete:focus-visible {
+	opacity: 1;
+}
+
+.dm-task .dm-task-delete:hover {
+	color: var(--text-error);
+}
+
+/* Touch screens have no hover, so always show the delete button there. */
+@media (hover: none) {
+	.dm-task .dm-task-delete {
+		opacity: 0.7;
+	}
+}
+
+.dm-task.is-done .dm-task-text {
+	color: var(--text-faint);
+	text-decoration: line-through;
+}
+
+.dm-task-meta {
+	display: flex;
+	gap: 8px;
+	margin-top: 2px;
+	font-size: var(--font-ui-smaller);
+	color: var(--text-faint);
+}
+
+.dm-due.is-overdue {
+	color: var(--text-error);
+}
+
+.dm-task-file {
+	color: var(--text-faint);
+	text-decoration: none;
+}
+
+.dm-task-file:hover {
+	color: var(--text-accent);
+	text-decoration: underline;
+}
+
+.dm-add {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin-top: 12px;
+	color: var(--text-faint);
+}
+
+.dm-add-icon {
+	display: flex;
+}
+
+.dm-add-icon svg {
+	width: 16px;
+	height: 16px;
+}
+
+.dm-add .dm-add-input {
+	flex: 1;
+	border: none;
+	background: transparent;
+	box-shadow: none;
+	padding: 4px 0;
+}
+
+.dm-add .dm-add-input:focus {
+	box-shadow: none;
+	border-bottom: 1px solid var(--interactive-accent);
+	border-radius: 0;
+}
+
+/* Subjects */
+.dm-section-label {
+	margin: 4px 0 12px;
+}
+
+.dm-subject-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+	gap: 16px;
+}
+
+.dm-subject {
+	padding: 0;
+	overflow: hidden;
+	cursor: pointer;
+	transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.dm-subject:hover,
+.dm-subject:focus-visible {
+	transform: translateY(-2px);
+	border-color: var(--interactive-accent);
+	box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+	outline: none;
+}
+
+.dm-cover {
+	position: relative;
+	height: 96px;
+	background: linear-gradient(135deg, hsl(var(--dm-hue, 220) 60% 86%), hsl(calc(var(--dm-hue, 220) + 40) 55% 74%));
+	background-size: cover;
+	background-position: center;
+}
+
+.theme-dark .dm-cover:not(.has-image) {
+	background: linear-gradient(135deg, hsl(var(--dm-hue, 220) 35% 32%), hsl(calc(var(--dm-hue, 220) + 40) 30% 22%));
+}
+
+.dm-icon {
+	position: absolute;
+	left: 16px;
+	bottom: -18px;
+	width: 40px;
+	height: 40px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	font-size: 22px;
+	border-radius: 12px;
+	background: var(--background-primary);
+	border: 1px solid var(--background-modifier-border);
+}
+
+.dm-subject-body {
+	padding: 26px 16px 16px;
+}
+
+.dm-subject-title {
+	font-weight: 600;
+}
+
+.dm-subject-desc {
+	margin-top: 4px;
+	font-size: var(--font-ui-small);
+	line-height: 1.45;
+	color: var(--text-muted);
+	display: -webkit-box;
+	-webkit-line-clamp: 2;
+	-webkit-box-orient: vertical;
+	overflow: hidden;
+}
+
+.dm-subject-meta {
+	margin-top: 10px;
+	font-size: var(--font-ui-smaller);
+	color: var(--text-faint);
+}
+
+/* Recently edited */
+.dm-recent-list {
+	margin-top: 8px;
+}
+
+.dm-recent-row {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	padding: 10px 8px;
+	margin: 0 -8px;
+	border-radius: 10px;
+	cursor: pointer;
+}
+
+.dm-recent-row:hover,
+.dm-recent-row:focus-visible {
+	background: var(--background-modifier-hover);
+	outline: none;
+}
+
+.dm-recent-icon {
+	width: 34px;
+	height: 34px;
+	flex-shrink: 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	font-size: 17px;
+	border-radius: 10px;
+	color: var(--text-muted);
+	background: var(--background-primary);
+	border: 1px solid var(--background-modifier-border);
+}
+
+.dm-recent-icon svg {
+	width: 16px;
+	height: 16px;
+}
+
+.dm-recent-body {
+	flex: 1;
+	min-width: 0;
+}
+
+.dm-recent-title {
+	font-weight: 500;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.dm-recent-chips {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	margin-top: 4px;
+}
+
+.dm-chip {
+	font-size: var(--font-ui-smaller);
+	line-height: 1.6;
+	padding: 0 8px;
+	border-radius: 999px;
+	color: var(--text-muted);
+	background: var(--background-modifier-hover);
+}
+
+/* Study status colours: draft, learning, mastered. */
+.dm-chip-status[data-value="draft"] {
+	color: var(--text-faint);
+	background: transparent;
+	border: 1px dashed var(--background-modifier-border);
+}
+
+.dm-chip-status[data-value="learning"] {
+	color: var(--text-accent);
+	background: hsla(var(--accent-h), var(--accent-s), var(--accent-l), 0.12);
+}
+
+.dm-chip-status[data-value="mastered"] {
+	color: var(--text-success);
+	background: rgba(var(--color-green-rgb), 0.12);
+}
+
+.dm-recent-time {
+	flex-shrink: 0;
+	font-size: var(--font-ui-smaller);
+	color: var(--text-faint);
+}
+
+/* Tabs */
+.dm-tab-bar {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	margin-bottom: 16px;
+}
+
+.dm-tab-list {
+	display: inline-flex;
+	flex-wrap: wrap;
+	gap: 4px;
+	padding: 4px;
+	border-radius: 999px;
+	background: var(--background-secondary);
+	border: 1px solid var(--background-modifier-border);
+}
+
+.dm-tabs .dm-tab {
+	border: none;
+	box-shadow: none;
+	background: transparent;
+	color: var(--text-muted);
+	padding: 6px 16px;
+	height: auto;
+	border-radius: 999px;
+	font-size: var(--font-ui-small);
+	cursor: pointer;
+}
+
+.dm-tabs .dm-tab:hover {
+	color: var(--text-normal);
+	background: var(--background-modifier-hover);
+}
+
+.dm-tabs .dm-tab.is-active {
+	color: var(--text-on-accent);
+	background: var(--interactive-accent);
+}
+
+.dm-tab-edit {
+	color: var(--text-faint);
+}
+
+.dm-tab-panel > div > :first-child {
+	margin-top: 0;
+}
+
+/* Day log */
+.dm-log-add {
+	margin: 4px 0 8px;
+}
+
+.dm-log-row {
+	display: flex;
+	align-items: flex-start;
+	gap: 12px;
+	padding: 8px 0;
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.dm-log-row:hover .dm-task-delete,
+.dm-log-row .dm-task-delete:focus-visible {
+	opacity: 1;
+}
+
+.dm-log-time {
+	flex-shrink: 0;
+	min-width: 3.2em;
+	font-size: var(--font-ui-small);
+	font-variant-numeric: tabular-nums;
+	color: var(--text-faint);
+	line-height: 1.6;
+}
+
+.dm-log-text {
+	flex: 1;
+	min-width: 0;
+	line-height: 1.5;
+	overflow-wrap: anywhere;
+}
+
+.dm-log-open {
+	display: inline-block;
+	margin-top: 10px;
+	font-size: var(--font-ui-smaller);
+	color: var(--text-faint);
+}
+
+/* Daily card (encouragement, description, summary) */
+.block-language-deskmate-daily {
+	container-type: inline-size;
+}
+
+.dm-daily {
+	display: grid;
+	gap: 20px;
+}
+
+.dm-daily-top {
+	display: grid;
+	grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+	gap: 24px;
+}
+
+@container (max-width: 620px) {
+	.dm-daily-top {
+		grid-template-columns: 1fr;
+		gap: 18px;
+	}
+}
+
+.dm-daily-section .dm-card-head {
+	margin-bottom: 6px;
+	min-height: 24px;
+}
+
+.dm-daily-text {
+	line-height: 1.55;
+}
+
+/* Encouragement: the main line, with a soft accent bar. */
+.dm-daily-encourage .dm-daily-text {
+	font-size: 1.2em;
+	font-weight: 500;
+	line-height: 1.45;
+	padding-left: 14px;
+	border-left: 3px solid var(--interactive-accent);
+}
+
+/* Describe: small title, then the description. */
+.dm-daily-title {
+	font-weight: 600;
+	margin-bottom: 2px;
+}
+
+.dm-daily-describe .dm-daily-text {
+	color: var(--text-muted);
+}
+
+.dm-log-summary:not(:empty) {
+	margin-top: 16px;
+	padding-top: 16px;
+	border-top: 1px solid var(--background-modifier-border);
+}
+
+.dm-log-summary .dm-label {
+	margin-bottom: 6px;
+}
+
+.dm-daily-text.dm-placeholder {
+	color: var(--text-faint);
+}
+
+.dm-daily-refresh {
+	color: var(--text-faint);
+	opacity: 0;
+	transition: opacity 0.1s ease;
+}
+
+.dm-daily-section:hover .dm-daily-refresh,
+.dm-daily-refresh:focus-visible {
+	opacity: 1;
+}
+
+@media (hover: none) {
+	.dm-daily-refresh {
+		opacity: 0.7;
+	}
+}
+
+.dm-daily-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	margin-top: 12px;
+}
+
+/* Narrow panes and phones */
+@media (max-width: 700px) {
+	.dm-card {
+		padding: 16px;
+	}
+	.dm-header {
+		padding: 22px 20px;
+	}
+	.dm-subject-grid {
+		grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+		gap: 12px;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.dm-subject {
+		transition: none;
+	}
+	.dm-subject:hover {
+		transform: none;
+	}
+}
