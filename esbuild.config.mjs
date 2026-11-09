@@ -34,6 +34,32 @@ const webllmBrowserOnly = {
   },
 };
 
+// Embed a self-contained worker so installation still needs just the usual three files.
+// The worker's code is parsed and executed only when AI is actually used.
+const aiWorker = {
+  name: "ai-worker",
+  setup(build) {
+    build.onResolve({ filter: /^deskmate:ai-worker$/ }, () => ({ path: "ai-worker", namespace: "deskmate" }));
+    build.onLoad({ filter: /.*/, namespace: "deskmate" }, async () => {
+      const result = await esbuild.build({
+        entryPoints: ["src/ai/worker.ts"],
+        bundle: true,
+        write: false,
+        format: "iife",
+        platform: "browser",
+        target: "es2020",
+        minify: true,
+        plugins: [webllmBrowserOnly],
+      });
+      return {
+        contents: result.outputFiles[0].text,
+        loader: "text",
+        watchFiles: ["src/ai/worker.ts", "src/ai/protocol.ts"],
+      };
+    });
+  },
+};
+
 const context = await esbuild.context({
   entryPoints: ["src/main.ts"],
   bundle: true,
@@ -46,7 +72,7 @@ const context = await esbuild.context({
   minify: prod,
   legalComments: "inline",
   outfile: "main.js",
-  plugins: [webllmBrowserOnly, copyToVault],
+  plugins: [webllmBrowserOnly, aiWorker, copyToVault],
 });
 
 if (prod) {

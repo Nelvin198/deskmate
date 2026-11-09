@@ -24,6 +24,7 @@ export class RecentWidget extends MarkdownRenderChild {
 		this.listEl = root.createDiv("dm-recent-list");
 
 		const refresh = debounce(() => this.render(), 600, true);
+		this.register(() => refresh.cancel());
 		this.registerEvent(this.plugin.app.metadataCache.on("changed", refresh));
 		this.registerEvent(this.plugin.app.vault.on("rename", refresh));
 		this.registerEvent(this.plugin.app.vault.on("delete", refresh));

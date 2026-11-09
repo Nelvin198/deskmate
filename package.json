@@ -7,9 +7,11 @@
   "scripts": {
     "dev": "node esbuild.config.mjs",
     "build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
-    "lint": "eslint src"
+    "lint": "eslint src",
+    "test": "node --test",
+    "test:browser": "node tests/browser-smoke.mjs"
   },
-  "author": "Nelvin Cheah",
+  "author": "silverbullet",
   "license": "MIT",
   "dependencies": {
     "@mlc-ai/web-llm": "^0.2.87",

@@ -20,6 +20,8 @@ export class TabsWidget extends MarkdownRenderChild {
 	private panel!: HTMLElement;
 	private content?: Component;
 	private renderToken = 0;
+	private unloaded = false;
+	private rendered?: { path: string; body: string };
 
 	constructor(containerEl: HTMLElement, private plugin: DeskmatePlugin, source: string, private sourcePath: string) {
 		super(containerEl);
@@ -70,7 +72,8 @@ export class TabsWidget extends MarkdownRenderChild {
 		this.panel = root.createDiv({ cls: "dm-tab-panel markdown-rendered" });
 		this.panel.setAttribute("role", "tabpanel");
 
-		const refresh = debounce(() => void this.select(this.current), 400, true);
+		const refresh = debounce(() => void this.select(this.current, true), 400, true);
+		this.register(() => refresh.cancel());
 		this.registerEvent(
 			this.plugin.app.vault.on("modify", (file) => {
 				if (file.path === this.fileFor(this.tabs[this.current])?.path) refresh();
@@ -83,6 +86,8 @@ export class TabsWidget extends MarkdownRenderChild {
 	}
 
 	onunload(): void {
+		this.unloaded = true;
+		this.renderToken++;
 		this.content?.unload();
 	}
 
@@ -90,7 +95,8 @@ export class TabsWidget extends MarkdownRenderChild {
 		return this.plugin.app.metadataCache.getFirstLinkpathDest(tab.link, this.sourcePath);
 	}
 
-	private async select(index: number): Promise<void> {
+	private async select(index: number, force = false): Promise<void> {
+		if (this.unloaded || (!force && index === this.current && this.rendered)) return;
 		const token = ++this.renderToken;
 		this.current = index;
 		this.plugin.app.saveLocalStorage(this.storageKey, String(index));
@@ -113,10 +119,17 @@ export class TabsWidget extends MarkdownRenderChild {
 			return;
 		}
 
-		const text = await this.plugin.app.vault.cachedRead(file);
-		if (token !== this.renderToken) return;
+		let text: string;
+		try {
+			text = await this.plugin.app.vault.cachedRead(file);
+		} catch (error) {
+			if (token === this.renderToken) new Notice(error instanceof Error ? error.message : "Couldn't load that tab.");
+			return;
+		}
+		if (this.unloaded || token !== this.renderToken) return;
 		const cache = this.plugin.app.metadataCache.getFileCache(file);
 		const body = text.slice(cache?.frontmatterPosition?.end.offset ?? 0);
+		if (this.rendered?.path === file.path && this.rendered.body === body) return;
 		if (/^```+\s*deskmate-tabs/m.test(body)) {
 			this.showContent(null);
 			this.panel.createDiv({ cls: "dm-empty", text: `"${file.basename}" has its own tabs block, which can't go inside another one.` });
@@ -125,14 +138,22 @@ export class TabsWidget extends MarkdownRenderChild {
 
 		const component = this.showContent(new Component());
 		const target = createDiv();
-		await MarkdownRenderer.render(this.plugin.app, body, target, file.path, component);
-		if (token !== this.renderToken) return;
-		this.panel.replaceChildren(target);
+		try {
+			await MarkdownRenderer.render(this.plugin.app, body, target, file.path, component);
+			if (this.unloaded || token !== this.renderToken) return;
+			this.panel.replaceChildren(target);
+			this.rendered = { path: file.path, body };
+		} catch (error) {
+			if (token === this.renderToken) new Notice(error instanceof Error ? error.message : "Couldn't render that tab.");
+		} finally {
+			if (this.unloaded || token !== this.renderToken || !this.rendered) component.unload();
+		}
 	}
 
 	/** Unloads the previous tab's blocks (timers, events) and keeps the new one alive. */
 	private showContent<T extends Component | null>(component: T): T {
 		this.content?.unload();
+		this.rendered = undefined;
 		this.content = component ?? undefined;
 		if (component) component.load();
 		else this.panel.empty();

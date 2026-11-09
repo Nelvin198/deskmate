@@ -26,6 +26,7 @@ export class TodayWidget extends MarkdownRenderChild {
 	private goalEl!: HTMLElement;
 	private listEl!: HTMLElement;
 	private countEl!: HTMLElement;
+	private taskSignature?: string;
 
 	constructor(containerEl: HTMLElement, private plugin: DeskmatePlugin, private sourcePath: string) {
 		super(containerEl);
@@ -115,6 +116,9 @@ export class TodayWidget extends MarkdownRenderChild {
 			.filter((t) => isOpen(t) && t.due !== undefined && t.due <= today)
 			.sort((a, b) => (a.due ?? "").localeCompare(b.due ?? "") || a.text.localeCompare(b.text));
 		const doneToday = all.filter((t) => isDone(t) && t.doneDate === today);
+		const signature = JSON.stringify([today, ...due.concat(doneToday).map((t) => [t.file.path, t.line, t.raw])]);
+		if (signature === this.taskSignature) return;
+		this.taskSignature = signature;
 
 		this.countEl.setText(due.length || doneToday.length ? `${doneToday.length} of ${due.length + doneToday.length} done` : "");
 		this.listEl.empty();

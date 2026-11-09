@@ -44,6 +44,8 @@ export class AmbientScene {
 	private frame = 0;
 	private last = 0;
 	private visible = true;
+	private width = 0;
+	private height = 0;
 	private reducedMotion: MediaQueryList;
 	private resizeObserver: ResizeObserver;
 	private intersectionObserver: IntersectionObserver;
@@ -104,6 +106,10 @@ export class AmbientScene {
 	private resize(): void {
 		const width = this.host.clientWidth;
 		const height = this.host.clientHeight;
+		if (width === this.width && height === this.height) return;
+		this.width = width;
+		this.height = height;
+		this.update();
 		if (!width || !height) return;
 		this.renderer.setSize(width, height, false);
 		this.camera.aspect = width / height;
@@ -114,7 +120,7 @@ export class AmbientScene {
 	}
 
 	private get shouldAnimate(): boolean {
-		return this.visible && this.win.document.visibilityState === "visible" && !this.reducedMotion.matches;
+		return this.width > 0 && this.height > 0 && this.visible && this.win.document.visibilityState === "visible" && !this.reducedMotion.matches;
 	}
 
 	private update(): void {

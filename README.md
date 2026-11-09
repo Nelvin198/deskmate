@@ -112,7 +112,7 @@ Covers must be images inside your vault (so Deskmate stays offline). Without a c
 | `note` | `Journal/Day Log` | The note entries are saved to (found by name). Default from settings: `Day Log`. |
 | `title` | `Today so far` | Label on the card. |
 
-**Your day** (with local AI): at the bottom of the card, press **Summarise my day** to turn today's entries into a vivid, diary-style paragraph, then **Add to journal** to save them under a `## Day summary` heading in that day's daily note (created from your Daily notes template if needed; saving again replaces it).
+**Your day** (with local AI): at the bottom of the card, press **Summarise my day** to turn today's entries into a vivid, diary-style paragraph that covers your morning, afternoon and evening (each written separately, then joined; up to 300 words), then **Add to journal** to save them under a `## Day summary` heading in that day's daily note (created from your Daily notes template if needed; saving again replaces it).
 
 Type a line and press Enter to save it as `- 14:32 your text` under today's `## 2026-11-04 (Wednesday)` heading. Click an entry to edit it; use the bin icon to delete it (with Undo).
 
@@ -160,7 +160,13 @@ npm install
 npm run dev     # watch mode; set DESKMATE_PLUGIN_DIR to copy builds into a vault
 npm run build
 npm run lint
+npm test        # indexing, tab lifecycle and AI worker regression tests
+npm run test:browser  # packaged worker smoke check in isolated Chrome (build first)
 ```
+
+Task indexing updates only the changed note, using the text already supplied by Obsidian's metadata cache. Full reconciliation is reserved for startup, folder renames and changes to ignored folders. Unchanged task lists and subject cards retain their DOM, and pending widget refreshes are cancelled on unload.
+
+Local AI initialization, cache checks and inference run in an embedded Web Worker. Requests are serialized, the worker is terminated after two idle minutes or when the plugin unloads, and failed automatic daily generations wait for a manual retry. Installation still uses `main.js`, `manifest.json` and `styles.css`.
 
 Pushing a version tag (for example `1.0.1`) builds the plugin and creates a GitHub release.
 
@@ -171,4 +177,4 @@ Pushing a version tag (for example `1.0.1`) builds the plugin and creates a GitH
 
 ## Licence
 
-MIT © Nelvin Cheah
+MIT © silverbullet

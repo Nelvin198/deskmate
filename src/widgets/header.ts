@@ -20,6 +20,7 @@ export class HeaderWidget extends MarkdownRenderChild {
 	private dateEl!: HTMLElement;
 	private stats: Record<"notes" | "open" | "done", HTMLElement> = {} as never;
 	private ambient?: AmbientScene;
+	private day = dayKey();
 
 	constructor(containerEl: HTMLElement, private plugin: DeskmatePlugin, private options: Record<string, string>) {
 		super(containerEl);
@@ -79,18 +80,27 @@ export class HeaderWidget extends MarkdownRenderChild {
 		const now = moment();
 		const s = this.plugin.settings;
 		const name = this.options.name ?? s.name;
-		this.greetingEl.setText(name ? `${greeting(now.hour())}, ${name}.` : `${greeting(now.hour())}.`);
-		this.timeEl.setText(now.format(s.clock24h ? "HH:mm" : "h:mm"));
+		this.setText(this.greetingEl, name ? `${greeting(now.hour())}, ${name}.` : `${greeting(now.hour())}.`);
+		this.setText(this.timeEl, now.format(s.clock24h ? "HH:mm" : "h:mm"));
 		const seconds = s.showSeconds ? now.format(":ss") : "";
-		this.secondsEl.setText(s.clock24h ? seconds : `${seconds} ${now.format("A")}`);
-		this.dateEl.setText(now.format("dddd, D MMMM YYYY"));
+		this.setText(this.secondsEl, s.clock24h ? seconds : `${seconds} ${now.format("A")}`);
+		this.setText(this.dateEl, now.format("dddd, D MMMM YYYY"));
+		const day = dayKey();
+		if (day !== this.day) {
+			this.day = day;
+			this.renderStats();
+		}
+	}
+
+	private setText(el: HTMLElement, text: string): void {
+		if (el.textContent !== text) el.setText(text);
 	}
 
 	private renderStats(): void {
 		const { tasks, noteCount } = this.plugin.tasks;
 		const today = dayKey();
-		this.stats.notes.setText(String(noteCount));
-		this.stats.open.setText(String(tasks.filter(isOpen).length));
-		this.stats.done.setText(String(tasks.filter((t) => isDone(t) && t.doneDate === today).length));
+		this.setText(this.stats.notes, String(noteCount));
+		this.setText(this.stats.open, String(tasks.filter(isOpen).length));
+		this.setText(this.stats.done, String(tasks.filter((t) => isDone(t) && t.doneDate === today).length));
 	}
 }

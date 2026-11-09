@@ -10,6 +10,9 @@ import type DeskmatePlugin from "../main";
  */
 export class SubjectsWidget extends MarkdownRenderChild {
 	private gridEl!: HTMLElement;
+	private renderToken = 0;
+	private signature?: string;
+	private unloaded = false;
 
 	constructor(containerEl: HTMLElement, private plugin: DeskmatePlugin, private options: Record<string, string>, private sourcePath: string) {
 		super(containerEl);
@@ -20,9 +23,15 @@ export class SubjectsWidget extends MarkdownRenderChild {
 		if (this.options.title !== "") root.createDiv({ cls: "dm-label dm-section-label", text: this.options.title ?? "Subjects" });
 		this.gridEl = root.createDiv("dm-subject-grid");
 		const refresh = debounce(() => void this.render(), 500, true);
+		this.register(() => refresh.cancel());
 		this.registerEvent(this.plugin.app.metadataCache.on("resolved", refresh));
 		this.registerEvent(this.plugin.app.vault.on("rename", refresh));
 		void this.render();
+	}
+
+	onunload(): void {
+		this.unloaded = true;
+		this.renderToken++;
 	}
 
 	private files(): TFile[] {
@@ -42,8 +51,21 @@ export class SubjectsWidget extends MarkdownRenderChild {
 	}
 
 	private async render(): Promise<void> {
+		if (this.unloaded) return;
+		const token = ++this.renderToken;
 		const files = this.files();
-		const cards = await Promise.all(files.map((f) => this.cardData(f)));
+		// Count backlinks once, rather than walking the whole link graph for every card.
+		const links = new Map(files.map((file) => [file.path, 0]));
+		for (const targets of Object.values(this.plugin.app.metadataCache.resolvedLinks)) {
+			for (const path of Object.keys(targets)) {
+				if (targets[path] && links.has(path)) links.set(path, links.get(path)! + 1);
+			}
+		}
+		const cards = await Promise.all(files.map((f) => this.cardData(f, links.get(f.path) ?? 0)));
+		if (this.unloaded || token !== this.renderToken) return;
+		const signature = JSON.stringify(cards.map((card) => [card.file.path, card.description, card.icon, card.cover, card.links]));
+		if (signature === this.signature) return;
+		this.signature = signature;
 		const grid = this.gridEl;
 		grid.empty();
 		if (!cards.length) {
@@ -54,7 +76,7 @@ export class SubjectsWidget extends MarkdownRenderChild {
 		for (const card of cards) this.renderCard(card);
 	}
 
-	private async cardData(file: TFile) {
+	private async cardData(file: TFile, links: number) {
 		const { app } = this.plugin;
 		const cache = app.metadataCache.getFileCache(file);
 		const fm = cache?.frontmatter ?? {};
@@ -63,8 +85,6 @@ export class SubjectsWidget extends MarkdownRenderChild {
 			const text = await app.vault.cachedRead(file);
 			description = firstParagraph(text.slice(cache?.frontmatterPosition?.end.offset ?? 0));
 		}
-		let links = 0;
-		for (const targets of Object.values(app.metadataCache.resolvedLinks)) if (targets[file.path]) links++;
 		return {
 			file,
 			description,

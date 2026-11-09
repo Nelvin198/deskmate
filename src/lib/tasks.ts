@@ -48,6 +48,11 @@ export class TaskIndex {
 	tasks: Task[] = [];
 	noteCount = 0;
 	private listeners = new Set<() => void>();
+	private byFile = new Map<string, Task[]>();
+	private pending = new Map<string, { file: TFile; data?: string } | null>();
+	private fullScan = false;
+	private scanning = false;
+	private disposed = false;
 
 	constructor(private app: App, private excluded: () => string[]) {}
 
@@ -56,42 +61,110 @@ export class TaskIndex {
 		return () => this.listeners.delete(listener);
 	}
 
-	refresh = debounce(() => void this.scan(), 400, true);
+	/** Full reconciliation is only needed at startup or when exclusions change. */
+	refresh = (): void => {
+		if (this.disposed) return;
+		this.fullScan = true;
+		this.schedule();
+	};
 
-	private run = 0;
+	update(file: TFile, data?: string): void {
+		if (file.extension !== "md" || this.disposed) return;
+		this.pending.set(file.path, { file, data });
+		this.schedule();
+	}
+
+	remove(path: string): void {
+		if (this.disposed) return;
+		this.pending.set(path, null);
+		this.schedule();
+	}
+
+	dispose(): void {
+		this.disposed = true;
+		this.schedule.cancel();
+		this.pending.clear();
+		this.byFile.clear();
+		this.listeners.clear();
+	}
+
+	private schedule = debounce(() => void this.scan(), 150, true);
 
 	private async scan(): Promise<void> {
-		// If a newer scan starts while this one is reading files, this one's result is dropped.
-		const run = ++this.run;
-		const excluded = this.excluded();
-		const files = this.app.vault.getMarkdownFiles();
-		const tasks: Task[] = [];
-		for (const file of files) {
-			if (isExcluded(file.path, excluded)) continue;
-			const items = this.app.metadataCache.getFileCache(file)?.listItems?.filter((i) => i.task !== undefined);
-			if (!items?.length) continue;
-			const lines = (await this.app.vault.cachedRead(file)).split("\n");
-			for (const item of items) {
-				const line = item.position.start.line;
-				const raw = lines[line]?.replace(/\r$/, "");
-				const match = raw?.match(TASK_LINE);
-				if (!raw || !match) continue;
-				const body = match[3].slice(1);
-				tasks.push({
-					file,
-					line,
-					raw,
-					text: displayText(body),
-					status: match[2],
-					due: body.match(DUE)?.[1],
-					doneDate: body.match(DONE)?.[1],
-				});
+		if (this.scanning || this.disposed) return;
+		this.scanning = true;
+		let changed = false;
+		try {
+			if (this.fullScan) {
+				this.fullScan = false;
+				const files = this.app.vault.getMarkdownFiles();
+				const paths = new Set(files.map((file) => file.path));
+				for (const path of this.byFile.keys()) if (!paths.has(path)) this.pending.set(path, null);
+				for (const file of files) if (!this.pending.has(file.path)) this.pending.set(file.path, { file });
 			}
+			const excluded = this.excluded();
+			let processed = 0;
+			while (this.pending.size && !this.disposed) {
+				const [path, update] = this.pending.entries().next().value!;
+				this.pending.delete(path);
+				let tasks: Task[] = [];
+				try {
+					if (update && update.file.path === path && !isExcluded(path, excluded)) {
+						const items = this.app.metadataCache.getFileCache(update.file)?.listItems?.filter((i) => i.task !== undefined);
+						if (items?.length) {
+							const data = update.data ?? await this.app.vault.cachedRead(update.file);
+							if (this.disposed) return;
+							// An edit, rename or deletion during the read wins over the older result.
+							if (this.pending.has(path) || update.file.path !== path) continue;
+							tasks = this.parse(update.file, data, items);
+						}
+					}
+				} catch (error) {
+					console.warn(`Deskmate: couldn't index ${path}`, error);
+					continue;
+				}
+				const previous = this.byFile.get(path) ?? [];
+				if (tasks.length !== previous.length || tasks.some((task, i) => task.raw !== previous[i].raw || task.line !== previous[i].line)) {
+					changed = true;
+					if (tasks.length) this.byFile.set(path, tasks);
+					else this.byFile.delete(path);
+				}
+				// Let typing and painting proceed during a large initial index.
+				if (++processed % 50 === 0) await new Promise<void>((resolve) => window.setTimeout(resolve, 0));
+			}
+			if (this.disposed) return;
+			const noteCount = this.app.vault.getMarkdownFiles().length;
+			if (changed) this.tasks = Array.from(this.byFile.values()).flat();
+			if (changed || noteCount !== this.noteCount) {
+				this.noteCount = noteCount;
+				for (const listener of this.listeners) listener();
+			}
+		} finally {
+			this.scanning = false;
+			if (!this.disposed && (this.pending.size || this.fullScan)) this.schedule();
 		}
-		if (run !== this.run) return;
-		this.tasks = tasks;
-		this.noteCount = files.length;
-		for (const listener of this.listeners) listener();
+	}
+
+	private parse(file: TFile, data: string, items: { position: { start: { line: number } } }[]): Task[] {
+		const lines = data.split("\n");
+		const tasks: Task[] = [];
+		for (const item of items) {
+			const line = item.position.start.line;
+			const raw = lines[line]?.replace(/\r$/, "");
+			const match = raw?.match(TASK_LINE);
+			if (!raw || !match) continue;
+			const body = match[3].slice(1);
+			tasks.push({
+				file,
+				line,
+				raw,
+				text: displayText(body),
+				status: match[2],
+				due: body.match(DUE)?.[1],
+				doneDate: body.match(DONE)?.[1],
+			});
+		}
+		return tasks;
 	}
 }
 

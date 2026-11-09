@@ -3,7 +3,9 @@ import type DeskmatePlugin from "../main";
 import { dayKey, moment } from "../lib/dates";
 import { LogEntry, addEntry, deleteEntry, editEntry, entriesFor, findLog, findOrCreateLog, restoreEntry } from "../lib/daylog";
 import { addSummaryToJournal } from "../lib/journal";
-import { cleanReply, summaryPrompt } from "../ai/prompts";
+import { cleanReply, partPrompt, splitDay } from "../ai/prompts";
+
+const SUMMARY_PART_WORDS = 150;
 
 const errorText = (error: unknown, fallback: string) => (error instanceof Error ? error.message : fallback);
 
@@ -19,6 +21,8 @@ export class DayLogWidget extends MarkdownRenderChild {
 	private summaryEl!: HTMLElement;
 	private entries: LogEntry[] = [];
 	private dateEl!: HTMLElement;
+	private renderToken = 0;
+	private unloaded = false;
 
 	constructor(containerEl: HTMLElement, private plugin: DeskmatePlugin, private options: Record<string, string>, private sourcePath: string) {
 		super(containerEl);
@@ -47,6 +51,7 @@ export class DayLogWidget extends MarkdownRenderChild {
 		});
 
 		const refresh = debounce(() => void this.render(), 300, true);
+		this.register(() => refresh.cancel());
 		this.register(this.plugin.onDailyChange(refresh));
 		this.registerEvent(
 			this.plugin.app.vault.on("modify", (file) => {
@@ -65,38 +70,49 @@ export class DayLogWidget extends MarkdownRenderChild {
 		void this.render();
 	}
 
+	onunload(): void {
+		this.unloaded = true;
+		this.renderToken++;
+	}
+
 	private file(): TFile | null {
 		return findLog(this.plugin.app, this.note, this.sourcePath);
 	}
 
 	private async render(): Promise<void> {
+		if (this.unloaded) return;
+		const token = ++this.renderToken;
+		const day = this.day;
 		this.dateEl.setText(moment(this.day).format("dddd, D MMM"));
 		const file = this.file();
-		const entries = file ? entriesFor(await this.plugin.app.vault.cachedRead(file), this.day) : [];
+		const entries = file ? entriesFor(await this.plugin.app.vault.cachedRead(file), day) : [];
+		if (this.unloaded || token !== this.renderToken || day !== this.day) return;
 		this.entries = entries;
 		this.listEl.empty();
 		if (!file || !entries.length) this.listEl.createDiv({ cls: "dm-empty", text: "Nothing logged yet today." });
 		else for (const entry of entries) this.renderEntry(file, entry);
-		await this.renderSummary();
+		await this.renderSummary(token);
 	}
 
 	/** "Your day": an AI summary of today's entries that can be saved to the journal. */
-	private async renderSummary(): Promise<void> {
+	private async renderSummary(token: number): Promise<void> {
 		const day = this.day;
-		const item = this.plugin.getDaily(day);
 		const ai = await this.plugin.aiReady();
+		if (this.unloaded || token !== this.renderToken || day !== this.day) return;
+		const item = this.plugin.getDaily(day);
 		const el = this.summaryEl;
 		el.empty();
 		// Only where it can be written, or once one exists.
 		if (!ai && !item.summary) return;
 
 		el.createDiv({ cls: "dm-label", text: "Your day" });
-		if (item.summary) el.createDiv({ cls: "dm-daily-text", text: item.summary });
+		if (item.summary) for (const para of item.summary.split(/\n{2,}/)) el.createDiv({ cls: "dm-daily-text", text: para });
 		else el.createDiv({ cls: "dm-daily-text dm-placeholder", text: "Log a few moments, then sum up your day." });
 		if (!ai) return;
 
 		const actions = el.createDiv("dm-daily-actions");
 		const summarise = actions.createEl("button", { text: item.summary ? "Summarise again" : "Summarise my day" });
+		summarise.disabled = this.plugin.generating.has(`${day}:summary`);
 		summarise.addEventListener("click", () => void this.summarise(summarise));
 		if (item.summary && !item.summarySaved) {
 			const save = actions.createEl("button", { cls: "mod-cta", text: "Add to journal" });
@@ -105,20 +121,38 @@ export class DayLogWidget extends MarkdownRenderChild {
 	}
 
 	private async summarise(button: HTMLButtonElement): Promise<void> {
+		const day = this.day;
+		const key = `${day}:summary`;
+		if (this.plugin.generating.has(key)) return;
 		const lines = this.entries.filter((e) => !/^Summary:/i.test(e.text)).map((e) => `${e.time} ${e.text}`);
 		if (!lines.length) {
 			new Notice("Add a few lines to today's log first.");
 			return;
 		}
 		button.disabled = true;
-		button.setText("Summarising…");
+		this.plugin.generating.add(key);
 		try {
-			const raw = await this.plugin.aiGenerate(summaryPrompt(lines), { temperature: 0.6, maxTokens: 280 });
-			await this.plugin.setDaily(this.day, { summary: cleanReply(raw, 5, 120), summarySaved: false });
+			// One short AI run per part of the day, so the evening gets as much attention as the morning.
+			const parts = splitDay(lines);
+			const budget = SUMMARY_PART_WORDS;
+			const written: string[] = [];
+			for (const [i, { part, lines: partLines }] of parts.entries()) {
+				button.setText(`Summarising ${part}…`);
+				const prompt = partPrompt(part, partLines, { first: i === 0, last: i === parts.length - 1 }, budget);
+				const raw = await this.plugin.aiGenerate(prompt, { temperature: 0.6, maxTokens: Math.round(budget * 1.6) + 20 });
+				const text = cleanReply(raw, 5, budget).trim();
+				if (text) written.push(text);
+			}
+			const summary = written.join("\n\n");
+			if (!summary) throw new Error("the model didn't write anything. Try again.");
+			await this.plugin.setDaily(day, { summary, summarySaved: false });
 		} catch (error) {
 			new Notice(`Deskmate AI: ${errorText(error, "couldn't summarise")}`);
 			button.disabled = false;
 			button.setText("Summarise my day");
+		} finally {
+			this.plugin.generating.delete(key);
+			this.plugin.dailyChanged();
 		}
 	}
 

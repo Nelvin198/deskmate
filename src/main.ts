@@ -54,13 +54,16 @@ export default class DeskmatePlugin extends Plugin {
 	private dailyListeners = new Set<() => void>();
 	private supported?: Promise<boolean>;
 	private downloaded?: Promise<boolean>;
+	private taskExclusions = "";
 	/** Daily lines being written right now, so two open cards don't both write them. */
 	generating = new Set<string>();
 	tasks!: TaskIndex;
 
 	async onload(): Promise<void> {
 		await this.loadAll();
+		this.taskExclusions = this.settings.excludedFolders;
 		this.tasks = new TaskIndex(this.app, () => this.excludedFolders());
+		this.register(() => this.tasks.dispose());
 
 		this.addSettingTab(new DeskmateSettingTab(this.app, this));
 
@@ -93,10 +96,19 @@ export default class DeskmatePlugin extends Plugin {
 		});
 
 		const refresh = () => this.tasks.refresh();
-		this.registerEvent(this.app.metadataCache.on("changed", refresh));
-		this.registerEvent(this.app.metadataCache.on("deleted", refresh));
-		this.registerEvent(this.app.vault.on("rename", refresh));
-		this.registerEvent(this.app.vault.on("create", refresh));
+		this.registerEvent(this.app.metadataCache.on("changed", (file, data) => this.tasks.update(file, data)));
+		this.registerEvent(this.app.vault.on("delete", (file) => {
+			if (file instanceof TFile && file.extension === "md") this.tasks.remove(file.path);
+		}));
+		this.registerEvent(this.app.vault.on("rename", (file, oldPath) => {
+			if (file instanceof TFile) {
+				if (oldPath.endsWith(".md")) this.tasks.remove(oldPath);
+				this.tasks.update(file);
+			} else refresh();
+		}));
+		this.registerEvent(this.app.vault.on("create", (file) => {
+			if (file instanceof TFile) this.tasks.update(file);
+		}));
 		this.app.workspace.onLayoutReady(refresh);
 	}
 
@@ -129,9 +141,9 @@ export default class DeskmatePlugin extends Plugin {
 
 	async aiStatus(): Promise<AiStatus> {
 		if (Platform.isMobile) return "unsupported";
+		if (!this.settings.aiEnabled) return "off";
 		this.supported ??= isSupported();
 		if (!(await this.supported)) return "unsupported";
-		if (!this.settings.aiEnabled) return "off";
 		this.downloaded ??= isDownloaded(this.settings.aiModel);
 		return (await this.downloaded) ? "ready" : "not-downloaded";
 	}
@@ -143,6 +155,7 @@ export default class DeskmatePlugin extends Plugin {
 	/** Call after downloading, deleting or switching the model, or turning AI on or off. */
 	aiChanged(): void {
 		this.downloaded = undefined;
+		if (!this.settings.aiEnabled) void local.unload();
 		this.dailyChanged();
 	}
 
@@ -166,7 +179,10 @@ export default class DeskmatePlugin extends Plugin {
 
 	async saveSettings(): Promise<void> {
 		await this.saveAll();
-		this.tasks.refresh();
+		if (this.taskExclusions !== this.settings.excludedFolders) {
+			this.taskExclusions = this.settings.excludedFolders;
+			this.tasks.refresh();
+		}
 	}
 
 	private async loadAll(): Promise<void> {

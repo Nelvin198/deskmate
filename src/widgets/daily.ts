@@ -26,6 +26,9 @@ export class DailyWidget extends MarkdownRenderChild {
 	private day = dayKey();
 	private root!: HTMLElement;
 	private busy = new Set<string>();
+	private attempted = new Set<string>();
+	private renderToken = 0;
+	private unloaded = false;
 
 	constructor(containerEl: HTMLElement, private plugin: DeskmatePlugin) {
 		super(containerEl);
@@ -34,6 +37,7 @@ export class DailyWidget extends MarkdownRenderChild {
 	onload(): void {
 		this.root = this.containerEl.createDiv({ cls: "dm-card dm-daily" });
 		const refresh = debounce(() => void this.render(), 200, true);
+		this.register(() => refresh.cancel());
 		this.register(this.plugin.onDailyChange(refresh));
 		this.registerInterval(
 			window.setInterval(() => {
@@ -45,11 +49,18 @@ export class DailyWidget extends MarkdownRenderChild {
 		void this.render();
 	}
 
+	onunload(): void {
+		this.unloaded = true;
+		this.renderToken++;
+	}
+
 	private async render(): Promise<void> {
+		if (this.unloaded) return;
+		const token = ++this.renderToken;
 		const day = this.day;
-		const item = this.plugin.getDaily(day);
 		const ai = await this.plugin.aiReady();
-		if (day !== this.day) return;
+		if (this.unloaded || token !== this.renderToken || day !== this.day) return;
+		const item = this.plugin.getDaily(day);
 		this.root.empty();
 
 		const top = this.root.createDiv("dm-daily-top");
@@ -65,14 +76,15 @@ export class DailyWidget extends MarkdownRenderChild {
 			top,
 			"",
 			capitalise(topicFor(day)),
-			item.description ?? (ai ? "Writing…" : "Picture it for a moment: what does it look, sound and feel like?"),
+			item.description ?? (ai && (!this.attempted.has(`${day}:description`) || this.plugin.generating.has(`${day}:description`))
+				? "Writing…" : "Picture it for a moment: what does it look, sound and feel like?"),
 			ai ? () => void this.generate("description") : undefined,
 			"dm-daily-describe",
 		);
 
 		// First view of the day on the laptop: write today's lines once.
-		if (ai && !item.encouragement) void this.generate("encouragement");
-		if (ai && !item.description) void this.generate("description");
+		if (ai && !item.encouragement && !this.attempted.has(`${day}:encouragement`)) void this.generate("encouragement");
+		if (ai && !item.description && !this.attempted.has(`${day}:description`)) void this.generate("description");
 	}
 
 	private section(
@@ -102,6 +114,7 @@ export class DailyWidget extends MarkdownRenderChild {
 		const day = this.day;
 		const key = `${day}:${kind}`;
 		if (this.busy.has(key) || this.plugin.generating.has(key)) return;
+		this.attempted.add(key);
 		this.busy.add(key);
 		this.plugin.generating.add(key);
 		this.root.querySelector(kind === "encouragement" ? ".dm-daily-encourage .dm-daily-text" : ".dm-daily-describe .dm-daily-text")?.setText("Writing…");
