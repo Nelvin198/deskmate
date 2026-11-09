@@ -14,8 +14,6 @@ Deskmate follows your theme, works in light and dark mode, and fits phones.
 
 **Works offline.** Deskmate makes no network requests, with one opt-in exception: if you turn on the local AI, its model is downloaded once (see below). The 3D library (three.js) is bundled inside the plugin.
 
-<!-- Screenshots go here -->
-
 ## Install
 
 **Community plugins:** coming soon.
@@ -126,7 +124,7 @@ Notes: [[Dashboard/Notes]]
 ```
 ````
 
-One line per tab: `Label: [[note]]`. The chosen tab's note is shown in place. Use the arrow keys to switch, and the pencil button to edit the current tab's note. Deskmate remembers the last tab on each device. Requires Obsidian 1.8.7 or newer.
+One line per tab: `Label: [[note]]`. The chosen tab's note is shown in place. Use the arrow keys to switch, and the pencil button to edit the current tab's note. Deskmate remembers the last tab on each device. Requires Obsidian 1.9.0 or newer.
 
 ### `deskmate-daily`
 
