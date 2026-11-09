@@ -30,6 +30,8 @@ export const DEFAULT_SETTINGS: DeskmateSettings = {
 	aiModel: DEFAULT_MODEL,
 };
 
+// The declarative getSettingDefinitions() API is Obsidian 1.13.0+, but our minAppVersion is 1.9.0,
+// so we keep the imperative display() to support 1.9–1.12. Revisit if the floor is raised to 1.13.
 export class DeskmateSettingTab extends PluginSettingTab {
 	constructor(app: App, private plugin: DeskmatePlugin) {
 		super(app, plugin);
